@@ -1,184 +1,209 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth } from './firebase/config'
 
-const newTodo = ref('')
-const todos = ref([])
-const filter = ref('all')
+const router = useRouter()
+const isLoggedIn = ref(false)
 
-function addTodo() {
-  if (newTodo.value.trim() !== '') {
-    todos.value.push({ text: newTodo.value, done: false })
-  }
-  newTodo.value = ''
-}
-
-function removeTodo(index) {
-  todos.value.splice(index, 1)
-}
-
-const remainingTasks = computed(() => {
-  return todos.value.filter(todo => !todo.done).length
-})
-
-const filteredTodos = computed(() => {
-  if (filter.value === 'active') {
-    return todos.value.filter(todo => !todo.done)
-  } else if (filter.value === 'completed') {
-    return todos.value.filter(todo => todo.done)
-  }
-  return todos.value
-})
-
-watch(todos, (newVal) => {
-  localStorage.setItem('todos', JSON.stringify(newVal))
-}, { deep: true })
-
+// Cek status login secara real-time saat komponen dimuat
 onMounted(() => {
-  const savedTodos = localStorage.getItem('todos')
-  if (savedTodos) {
-    todos.value = JSON.parse(savedTodos)
-  }
+  onAuthStateChanged(auth, (user) => {
+    isLoggedIn.value = !!user; // Cara singkat untuk mengubah user/null menjadi true/false
+  })
 })
+
+const handleLogout = () => {
+  signOut(auth).then(() => {
+    // Arahkan ke halaman login SETELAH proses logout selesai
+    router.push('/login')
+  })
+}
 </script>
 
 <template>
-  <main>
-    <h1>My To-Do App</h1>
-
-    <form @submit.prevent="addTodo">
-      <input 
-        v-model="newTodo" 
-        placeholder="Apa rencanamu hari ini?"
-      >
-      <button>Add Todo</button>
-    </form>
-    
-    <div class="filter-bar">
-      <span>{{ remainingTasks }} tasks left</span>
-      <div class="filters">
-        <button @click="filter = 'all'" :class="{ active: filter === 'all' }">All</button>
-        <button @click="filter = 'active'" :class="{ active: filter === 'active' }">Active</button>
-        <button @click="filter = 'completed'" :class="{ active: filter === 'completed' }">Completed</button>
+  <header class="main-header">
+    <nav>
+      <router-link to="/" class="app-title-link">My To-Do App</router-link>
+      <div class="nav-links">
+        <div v-if="!isLoggedIn">
+          <router-link to="/login">Login</router-link>
+          <router-link to="/register">Register</router-link>
+        </div>
+        <button v-if="isLoggedIn" @click="handleLogout" class="logout-button">Logout</button>
       </div>
-    </div>
-
-    <ul>
-      <li v-for="(todo, index) in filteredTodos" :key="index">
-        <input type="checkbox" v-model="todo.done">
-        <span :class="{ done: todo.done }">{{ todo.text }}</span>
-        <button @click="removeTodo(index)">Remove</button>
-      </li>
-    </ul>
+    </nav>
+  </header>
+  <main class="main-content">
+    <router-view />
   </main>
 </template>
 
 <style>
+/* Gaya Global Sederhana */
 body {
-  background-color: #f4f4f4;
-  color: #333;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f4f4f8;
+  font-family: sans-serif;
   margin: 0;
-  padding: 0;
+  color: #333;
 }
 
-main {
-  max-width: 500px;
-  margin: 50px auto;
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+#app {
+  min-height: 100vh;
 }
 
-h1 {
-  text-align: center;
-  color: #42b883;
-}
-
-form {
+/* Membuat konten utama (termasuk form) berada di tengah */
+.main-content {
   display: flex;
-  margin-bottom: 20px;
-}
-
-form input[type="text"] {
+  justify-content: center;
+  align-items: center;
   flex-grow: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
+  padding: 20px;
 }
 
-form button {
-  padding: 10px 15px;
+/* Kontainer Form (Kartu) */
+.auth-form-container {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-form-container h2 {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+/* Grup Form (label + input) */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Penting! */
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #42b883; /* Warna hijau Vue */
+}
+
+/* Tombol Submit */
+.submit-button {
+  width: 100%;
+  padding: 12px;
   border: none;
+  border-radius: 4px;
   background-color: #42b883;
   color: white;
-  border-radius: 4px;
-  margin-left: 10px;
+  font-size: 16px;
+  font-weight: bold;
   cursor: pointer;
+  margin-top: 1rem;
+  transition: background-color 0.2s;
 }
 
-ul {
-  list-style: none;
-  padding: 0;
+.submit-button:hover:not(:disabled) {
+  background-color: #36a374;
 }
 
-li {
+.submit-button:disabled {
+  background-color: #a5d6b8;
+  cursor: not-allowed;
+}
+
+/* Link & Error */
+.switch-page-link {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.switch-page-link a {
+  color: #42b883;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.error-message {
+  color: #d9534f;
+  text-align: center;
+  margin-top: 1rem;
+}
+/* Gaya untuk Header & Navigasi */
+.main-header {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  position: sticky; /* Membuat navbar tetap di atas saat scroll */
+  top: 0;
+  z-index: 100;
+}
+
+.main-header nav {
+  display: flex;
+  justify-content: space-between; /* Judul di kiri, link/tombol di kanan */
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto; /* Menengahkan container nav */
+  padding: 0 20px;
+  height: 60px; /* Tinggi navbar */
+}
+
+/* Judul Aplikasi di Navbar */
+.main-header .app-title-link {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #2c3e50;
+  text-decoration: none;
+}
+
+/* Wadah untuk link di kanan */
+.nav-links {
   display: flex;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
+  gap: 1rem; /* Jarak antar item */
 }
 
-li:last-child {
-  border-bottom: none;
+.nav-links a {
+  color: #333;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
 }
 
-li input[type="checkbox"] {
-  margin-right: 15px;
-  width: 20px;
-  height: 20px;
+.nav-links a:hover {
+  background-color: #f4f4f8;
 }
 
-li span {
-  flex-grow: 1;
-}
-
-.done {
-  text-decoration: line-through;
-  color: #aaa;
-}
-
-li button {
-  background-color: #e74c3c;
+.logout-button {
+  background-color: #d9534f;
   color: white;
   border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.filter-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  font-size: 14px;
-  color: #777;
-}
-
-.filters button {
-  background: none;
-  border: 1px solid transparent;
-  color: #777;
-  margin: 0 2px;
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.filters button.active {
-  border-color: #42b883;
-  color: #42b883;
+.logout-button:hover {
+  background-color: #c9302c;
 }
 </style>
