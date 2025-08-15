@@ -1,271 +1,172 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, onUnmounted, computed } from 'vue'
 import { db, auth } from '../firebase/config'
+import { onAuthStateChanged } from 'firebase/auth'
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  doc,
+  orderBy,
+  serverTimestamp
+} from 'firebase/firestore'
 
-// --- State ---
-const newTodo = ref('')
+// State
+const projects = ref([])
 const todos = ref([])
-const filter = ref('all')
-const xp = ref(0) // State baru untuk Experience Points
+const newProjectName = ref('')
+const newTodoText = ref('')
+const newDueDate = ref('')
+const selectedProjectId = ref(null)
+const isLoadingProjects = ref(true)
+const isLoadingTodos = ref(false)
 
-// --- Fungsi ---
-function addTodo() {
-  if (newTodo.value.trim() !== '') {
-    todos.value.push({ text: newTodo.value, done: false })
-    xp.value += 5 // +5 XP untuk menambah tugas
-  }
-  newTodo.value = ''
-}
+// Referensi Koleksi
+const projectsCollection = collection(db, 'projects')
+const todosCollection = collection(db, 'todos')
 
-function removeTodo(index) {
-  // Kurangi XP hanya jika tugas yang dihapus belum selesai
-  if (!todos.value[index].done) {
-    xp.value -= 5
-  }
-  todos.value.splice(index, 1)
-}
+let projectsUnsubscribe = null
+let todosUnsubscribe = null
 
-function toggleTodoStatus(todo) {
-  // Fungsi ini dipanggil saat checkbox diubah
-  // 'todo.done' sudah otomatis diubah oleh v-model
-  if (todo.done) {
-    xp.value += 15 // +15 XP saat menyelesaikan
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    const projectsQuery = query(projectsCollection, where("userId", "==", user.uid), orderBy("name", "asc"));
+    projectsUnsubscribe = onSnapshot(projectsQuery, (snapshot) => {
+      projects.value = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+      isLoadingProjects.value = false;
+      if (!selectedProjectId.value && projects.value.length > 0) {
+        selectProject(projects.value[0].id);
+      }
+    });
   } else {
-    xp.value -= 15 // -15 XP jika batal menyelesaikan
+    projects.value = [];
+    todos.value = [];
+    if (projectsUnsubscribe) projectsUnsubscribe();
+    if (todosUnsubscribe) todosUnsubscribe();
   }
-}
+});
 
-// --- Computed Properties ---
-const remainingTasks = computed(() => {
-  return todos.value.filter(todo => !todo.done).length
-})
+const selectProject = (projectId) => {
+  selectedProjectId.value = projectId;
+  isLoadingTodos.value = true;
+  if (todosUnsubscribe) todosUnsubscribe();
+  const todosQuery = query(
+    todosCollection,
+    where("projectId", "==", projectId),
+    orderBy("createdAt", "desc")
+  );
+  todosUnsubscribe = onSnapshot(todosQuery, (snapshot) => {
+    todos.value = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    isLoadingTodos.value = false;
+  });
+};
 
-const filteredTodos = computed(() => {
-  if (filter.value === 'active') {
-    return todos.value.filter(todo => !todo.done)
-  } else if (filter.value === 'completed') {
-    return todos.value.filter(todo => todo.done)
+onUnmounted(() => {
+  if (projectsUnsubscribe) projectsUnsubscribe();
+  if (todosUnsubscribe) todosUnsubscribe();
+});
+
+const addProject = () => {
+  if (newProjectName.value.trim() !== '' && auth.currentUser) {
+    addDoc(projectsCollection, {
+      name: newProjectName.value,
+      userId: auth.currentUser.uid
+    });
+    newProjectName.value = '';
   }
-  return todos.value
-})
+};
 
-// Dihitung berdasarkan XP
-const level = computed(() => Math.floor(xp.value / 100) + 1)
-const xpForNextLevel = 100
-const xpProgress = computed(() => (xp.value % xpForNextLevel))
-
-// --- Watcher & Lifecycle ---
-watch(todos, (newVal) => {
-  localStorage.setItem('todos', JSON.stringify(newVal))
-}, { deep: true })
-
-// Simpan dan muat XP juga
-watch(xp, (newXp) => {
-  localStorage.setItem('xp', newXp)
-})
-
-onMounted(() => {
-  const savedTodos = localStorage.getItem('todos')
-  if (savedTodos) {
-    todos.value = JSON.parse(savedTodos)
+const addTodo = () => {
+  if (newTodoText.value.trim() !== '' && selectedProjectId.value && auth.currentUser) {
+    addDoc(todosCollection, {
+      text: newTodoText.value,
+      done: false,
+      createdAt: serverTimestamp(),
+      userId: auth.currentUser.uid,
+      projectId: selectedProjectId.value,
+      dueDate: newDueDate.value || null
+    });
+    newTodoText.value = '';
+    newDueDate.value = '';
   }
-  xp.value = Number(localStorage.getItem('xp')) || 0
-})
+};
+
+const removeTodo = (id) => {
+  deleteDoc(doc(db, "todos", id));
+};
+
+const toggleDone = (id, currentStatus) => {
+  updateDoc(doc(db, "todos", id), { done: !currentStatus });
+};
+
+const remainingTasks = computed(() => todos.value.filter(todo => !todo.done).length);
+const selectedProject = computed(() => projects.value.find(p => p.id === selectedProjectId.value));
+
+const isOverdue = (dueDate) => {
+  if (!dueDate) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return new Date(dueDate) < today;
+};
 </script>
 
 <template>
-  <main>
-    <h1>My To-Do App</h1>
-
-    <div class="status-bar">
-      <div class="level-info">
-        <strong>Level {{ level }}</strong>
-        <span>{{ xp }} XP</span>
-      </div>
-      <div class="progress-bar-container">
-        <div class="progress-bar" :style="{ width: xpProgress + '%' }"></div>
-        <span>{{ xpProgress }} / {{ xpForNextLevel }}</span>
-      </div>
+  <div class="flex w-full max-w-6xl mx-auto h-[85vh] bg-white rounded-xl shadow-lg overflow-hidden">
+    <div class="w-1/4 bg-gray-50 border-r border-gray-200 p-5 flex flex-col rounded-l-xl">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">Proyek Saya</h2>
+      <div v-if="isLoadingProjects" class="text-center text-gray-500 py-4">Memuat proyek...</div>
+      <ul v-else class="flex-grow space-y-2 overflow-y-auto">
+        <li v-for="project in projects" :key="project.id">
+          <button @click="selectProject(project.id)" class="w-full text-left p-2 rounded-md transition-colors" :class="selectedProjectId === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-200'">
+            {{ project.name }}
+          </button>
+        </li>
+      </ul>
+      <form @submit.prevent="addProject" class="mt-4 pt-4 border-t border-gray-200">
+        <input v-model="newProjectName" placeholder="Proyek baru..." class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500">
+      </form>
     </div>
 
-    <form @submit.prevent="addTodo">
-      <input 
-        v-model="newTodo" 
-        placeholder="Apa rencanamu hari ini?"
-      >
-      <button>Add Todo</button>
-    </form>
-    
-    <div class="filter-bar">
-      <span>{{ remainingTasks }} tasks left</span>
-      <div class="filters">
-        <button @click="filter = 'all'" :class="{ active: filter === 'all' }">All</button>
-        <button @click="filter = 'active'" :class="{ active: filter === 'active' }">Active</button>
-        <button @click="filter = 'completed'" :class="{ active: filter === 'completed' }">Completed</button>
+    <div class="w-3/4 p-8 flex flex-col overflow-y-auto">
+      <div v-if="isLoadingTodos" class="m-auto text-center text-gray-500">
+        <p class="text-xl font-semibold">Memuat tugas...</p>
+      </div>
+      <div v-else-if="selectedProject">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ selectedProject.name }}</h1>
+        <p class="text-gray-500 mb-6">{{ remainingTasks }} tugas tersisa</p>
+
+        <form @submit.prevent="addTodo" class="space-y-4 mb-6">
+          <input v-model="newTodoText" placeholder="Tambahkan tugas di proyek ini..." class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          <div class="flex gap-4">
+            <input type="date" v-model="newDueDate" class="flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            <button type="submit" class="bg-blue-600 text-white font-bold text-2xl px-5 rounded-lg hover:bg-blue-700 transition-colors">+</button>
+          </div>
+        </form>
+
+        <ul class="divide-y divide-gray-200">
+          <li v-for="todo in todos" :key="todo.id" class="py-4 flex items-start">
+            <input type="checkbox" :checked="todo.done" @change="toggleDone(todo.id, todo.done)" class="h-5 w-5 mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+            <div class="ml-3 flex-grow">
+              <span class="text-gray-800" :class="{'line-through text-gray-400': todo.done}">{{ todo.text }}</span>
+              <div v-if="todo.dueDate" class="text-xs mt-1" :class="{'text-red-500 font-semibold': isOverdue(todo.dueDate) && !todo.done}">
+                Jatuh tempo: {{ new Date(todo.dueDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) }}
+              </div>
+            </div>
+            <button @click="removeTodo(todo.id)" class="text-gray-400 hover:text-red-500 transition-colors">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div v-else class="m-auto text-center text-gray-500">
+        <p class="text-4xl mb-2">👈</p>
+        <h3 class="text-xl font-semibold">Pilih atau buat proyek</h3>
+        <p>Pilih proyek di sebelah kiri untuk memulai.</p>
       </div>
     </div>
-
-    <ul>
-      <li v-for="(todo, index) in filteredTodos" :key="index">
-        <input type="checkbox" v-model="todo.done" @change="toggleTodoStatus(todo)">
-        <span :class="{ done: todo.done }">{{ todo.text }}</span>
-        <button @click="removeTodo(index)">Remove</button>
-      </li>
-    </ul>
-  </main>
+  </div>
 </template>
-
-<style>
-body {
-  background-color: #f4f4f4;
-  color: #333;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
-  margin: 0;
-  padding: 0;
-}
-
-main {
-  max-width: 500px;
-  margin: 50px auto;
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-h1 {
-  text-align: center;
-  color: #42b883;
-}
-
-form {
-  display: flex;
-  margin-bottom: 20px;
-}
-
-form input[type="text"] {
-  flex-grow: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-form button {
-  padding: 10px 15px;
-  border: none;
-  background-color: #42b883;
-  color: white;
-  border-radius: 4px;
-  margin-left: 10px;
-  cursor: pointer;
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-}
-
-li {
-  display: flex;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
-}
-
-li:last-child {
-  border-bottom: none;
-}
-
-li input[type="checkbox"] {
-  margin-right: 15px;
-  width: 20px;
-  height: 20px;
-}
-
-li span {
-  flex-grow: 1;
-}
-
-.done {
-  text-decoration: line-through;
-  color: #aaa;
-}
-
-li button {
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.filter-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  font-size: 14px;
-  color: #777;
-}
-
-.filters button {
-  background: none;
-  border: 1px solid transparent;
-  color: #777;
-  margin: 0 2px;
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.filters button.active {
-  border-color: #42b883;
-  color: #42b883;
-}
-
-.status-bar {
-  background-color: #ecfdf5;
-  border: 1px solid #d1fae5;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 20px;
-}
-.level-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 16px;
-  margin-bottom: 10px;
-}
-.level-info strong {
-  color: #059669;
-}
-.level-info span {
-  font-weight: bold;
-  color: #34d399;
-}
-.progress-bar-container {
-  width: 100%;
-  background-color: #d1fae5;
-  border-radius: 10px;
-  position: relative;
-  text-align: center;
-  color: #065f46;
-  font-size: 12px;
-  font-weight: bold;
-}
-.progress-bar {
-  height: 20px;
-  background-color: #34d399;
-  border-radius: 10px;
-  transition: width 0.3s ease-in-out;
-}
-.progress-bar-container span {
-  position: absolute;
-  width: 100%;
-  left: 0;
-  top: 2px;
-}
-</style>
