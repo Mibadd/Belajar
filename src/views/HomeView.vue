@@ -24,6 +24,7 @@ const newDueDate = ref('')
 const selectedProjectId = ref(null)
 const isLoadingProjects = ref(true)
 const isLoadingTodos = ref(false)
+const isSidebarOpen = ref(false); // State untuk sidebar mobile
 
 // Referensi Koleksi
 const projectsCollection = collection(db, 'projects')
@@ -115,27 +116,50 @@ const isOverdue = (dueDate) => {
 </script>
 
 <template>
-  <div class="flex w-full max-w-6xl mx-auto h-[85vh] bg-white rounded-xl shadow-lg overflow-hidden">
-    <div class="w-1/4 bg-gray-50 border-r border-gray-200 p-5 flex flex-col rounded-l-xl">
+  <div class="relative flex w-full max-w-6xl mx-auto h-full md:h-[85vh] bg-white rounded-xl shadow-lg overflow-hidden">
+    
+    <!-- Tombol Menu (Hanya Tampil di Mobile) -->
+    <button @click="isSidebarOpen = true" class="md:hidden absolute top-4 left-4 z-20 bg-gray-100 p-2 rounded-md shadow">
+      <svg class="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+
+    <!-- Overlay (Hanya Tampil di Mobile saat Sidebar Terbuka) -->
+    <div v-if="isSidebarOpen" @click="isSidebarOpen = false" class="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"></div>
+
+    <!-- Sidebar Proyek -->
+    <div 
+      class="w-full sm:w-2/3 md:w-1/4 bg-gray-50 border-r border-gray-200 p-5 flex flex-col transition-transform duration-300 ease-in-out fixed md:static top-0 left-0 h-full z-40"
+      :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
+    >
       <h2 class="text-lg font-bold text-gray-800 mb-4">Proyek Saya</h2>
+      
       <div v-if="isLoadingProjects" class="text-center text-gray-500 py-4">Memuat proyek...</div>
+      
       <ul v-else class="flex-grow space-y-2 overflow-y-auto">
         <li v-for="project in projects" :key="project.id">
-          <button @click="selectProject(project.id)" class="w-full text-left p-2 rounded-md transition-colors" :class="selectedProjectId === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-200'">
+          <button 
+            @click="selectProject(project.id); isSidebarOpen = false"
+            class="w-full text-left p-2 rounded-md transition-colors"
+            :class="selectedProjectId === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-200'"
+          >
             {{ project.name }}
           </button>
         </li>
       </ul>
+
       <form @submit.prevent="addProject" class="mt-4 pt-4 border-t border-gray-200">
         <input v-model="newProjectName" placeholder="Proyek baru..." class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500">
       </form>
     </div>
 
-    <div class="w-3/4 p-8 flex flex-col overflow-y-auto">
+    <!-- Area Konten Tugas -->
+    <div class="w-full p-5 md:p-8 flex flex-col overflow-y-auto">
       <div v-if="isLoadingTodos" class="m-auto text-center text-gray-500">
         <p class="text-xl font-semibold">Memuat tugas...</p>
       </div>
-      <div v-else-if="selectedProject">
+      <div v-else-if="selectedProject" class="pt-12 md:pt-0">
         <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ selectedProject.name }}</h1>
         <p class="text-gray-500 mb-6">{{ remainingTasks }} tugas tersisa</p>
 
@@ -165,7 +189,8 @@ const isOverdue = (dueDate) => {
       <div v-else class="m-auto text-center text-gray-500">
         <p class="text-4xl mb-2">👈</p>
         <h3 class="text-xl font-semibold">Pilih atau buat proyek</h3>
-        <p>Pilih proyek di sebelah kiri untuk memulai.</p>
+        <p class="md:hidden">Gunakan tombol menu di pojok kiri atas untuk memulai.</p>
+        <p class="hidden md:block">Pilih proyek di sebelah kiri untuk memulai.</p>
       </div>
     </div>
   </div>
