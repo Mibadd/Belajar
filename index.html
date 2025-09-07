@@ -10,8 +10,7 @@
 
 <body>
   <div id="app">
-    <!-- Login Section -->
-    <div id="loginSection" class="login-container">
+    <div class="login-container">
       <h2>Login</h2>
       <form id="loginForm">
         <div class="form-group">
@@ -26,16 +25,12 @@
       </form>
       <p id="message"></p>
     </div>
-
-    <!-- Welcome Section -->
-    <div id="welcomeSection" class="login-container" style="display: none;">
-      <h2>Selamat Datang, <span id="loggedInUser"></span>!</h2>
-      <p>Anda telah berhasil login.</p>
-      <button id="logoutButton">Logout</button>
-    </div>
   </div>
-
-  <!-- Script -->
+  <div id="welcomeSection" class="login-container" style="display: none;">
+    <h2>Selamat Datang!</h2>
+    <p>Anda telah berhasil login.</p>
+    <button id="logoutButton">Logout</button>
+  </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 
