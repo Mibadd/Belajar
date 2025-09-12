@@ -1,13 +1,13 @@
 import './style.css'
 
-// Kita simulasikan database dengan sebuah array of objects.
+// --- DATABASE PENGGUNA ---
 const users = [
   { username: 'admin', password: 'password123' },
   { username: 'budi', password: 'passwordbudi' },
   { username: 'citra', password: 'passwordcitra' }
 ];
 
-// Ambil semua elemen yang kita butuhkan dari HTML
+// --- AMBIL ELEMEN HTML ---
 const loginSection = document.querySelector<HTMLDivElement>('#loginSection')!
 const welcomeSection = document.querySelector<HTMLDivElement>('#welcomeSection')!
 const loginForm = document.querySelector<HTMLFormElement>('#loginForm')!
@@ -17,37 +17,55 @@ const messageElement = document.querySelector<HTMLParagraphElement>('#message')!
 const logoutButton = document.querySelector<HTMLButtonElement>('#logoutButton')!
 const loggedInUserSpan = document.querySelector<HTMLSpanElement>('#loggedInUser')!
 
-// Event listener untuk form login
+// --- FUNGSI UNTUK MENGATUR TAMPILAN ---
+const showWelcomePage = (username: string) => {
+  loggedInUserSpan.textContent = username;
+  loginSection.style.display = 'none';
+  welcomeSection.style.display = 'block';
+}
+
+const showLoginPage = () => {
+  usernameInput.value = '';
+  passwordInput.value = '';
+  loginSection.style.display = 'block';
+  welcomeSection.style.display = 'none';
+}
+
+// --- LOGIKA LOGIN ---
 loginForm.addEventListener('submit', (event) => {
-  event.preventDefault()
-
-  const username = usernameInput.value
-  const password = passwordInput.value
-
-  // --- LOGIKA LOGIN BARU ---
-  // Cari pengguna di dalam array 'users'
+  event.preventDefault();
+  const username = usernameInput.value;
+  const password = passwordInput.value;
   const foundUser = users.find(user => user.username === username && user.password === password);
 
-  if (foundUser) { // Jika pengguna ditemukan
-    messageElement.textContent = ''
-
-    // Isi span dengan username yang berhasil login
-    loggedInUserSpan.textContent = foundUser.username
-
-    // Tampilkan halaman sambutan
-    loginSection.style.display = 'none'
-    welcomeSection.style.display = 'block'
-
-  } else { // Jika pengguna tidak ditemukan
-    messageElement.textContent = 'Username atau password salah!'
-    messageElement.style.color = 'red'
+  if (foundUser) {
+    // Simpan username ke localStorage saat login berhasil
+    localStorage.setItem('loggedInUser', foundUser.username);
+    showWelcomePage(foundUser.username);
+  } else {
+    messageElement.textContent = 'Username atau password salah!';
+    messageElement.style.color = 'red';
   }
-})
+});
 
-// Event listener untuk logout (tidak perlu diubah)
+// --- LOGIKA LOGOUT ---
 logoutButton.addEventListener('click', () => {
-  usernameInput.value = ''
-  passwordInput.value = ''
-  welcomeSection.style.display = 'none'
-  loginSection.style.display = 'block'
-})
+  // Hapus username dari localStorage saat logout
+  localStorage.removeItem('loggedInUser');
+  showLoginPage();
+});
+
+// --- PEMERIKSAAN SESI SAAT HALAMAN DIMUAT ---
+const checkSession = () => {
+  const loggedInUser = localStorage.getItem('loggedInUser');
+  if (loggedInUser) {
+    // Jika ada sesi, langsung tampilkan halaman selamat datang
+    showWelcomePage(loggedInUser);
+  } else {
+    // Jika tidak ada sesi, tampilkan halaman login
+    showLoginPage();
+  }
+};
+
+// Jalankan pemeriksaan sesi saat aplikasi pertama kali dimuat
+checkSession();
