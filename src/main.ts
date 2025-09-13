@@ -27,7 +27,7 @@ const showWelcomePage = (username: string) => {
 const showLoginPage = () => {
   usernameInput.value = '';
   passwordInput.value = '';
-  messageElement.textContent = ''; // Hapus pesan error saat logout
+  messageElement.textContent = ''; 
   loginSection.style.display = 'block';
   welcomeSection.style.display = 'none';
 }
@@ -35,14 +35,14 @@ const showLoginPage = () => {
 // --- LOGIKA LOGIN DENGAN VALIDASI ---
 loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  const username = usernameInput.value.trim(); // Gunakan trim() untuk menghapus spasi
+  const username = usernameInput.value.trim(); 
   const password = passwordInput.value.trim();
 
   // --- VALIDASI INPUT BARU ---
   if (username === '' || password === '') {
     messageElement.textContent = 'Username dan password tidak boleh kosong!';
     messageElement.style.color = 'red';
-    return; // Hentikan eksekusi jika input kosong
+    return; 
   }
 
   const foundUser = users.find(user => user.username === username && user.password === password);
