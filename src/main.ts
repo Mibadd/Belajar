@@ -27,19 +27,27 @@ const showWelcomePage = (username: string) => {
 const showLoginPage = () => {
   usernameInput.value = '';
   passwordInput.value = '';
+  messageElement.textContent = ''; 
   loginSection.style.display = 'block';
   welcomeSection.style.display = 'none';
 }
 
-// --- LOGIKA LOGIN ---
+// --- LOGIKA LOGIN DENGAN VALIDASI ---
 loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  const username = usernameInput.value;
-  const password = passwordInput.value;
+  const username = usernameInput.value.trim(); 
+  const password = passwordInput.value.trim();
+
+  // --- VALIDASI INPUT BARU ---
+  if (username === '' || password === '') {
+    messageElement.textContent = 'Username dan password tidak boleh kosong!';
+    messageElement.style.color = 'red';
+    return; 
+  }
+
   const foundUser = users.find(user => user.username === username && user.password === password);
 
   if (foundUser) {
-    // Simpan username ke localStorage saat login berhasil
     localStorage.setItem('loggedInUser', foundUser.username);
     showWelcomePage(foundUser.username);
   } else {
@@ -50,7 +58,6 @@ loginForm.addEventListener('submit', (event) => {
 
 // --- LOGIKA LOGOUT ---
 logoutButton.addEventListener('click', () => {
-  // Hapus username dari localStorage saat logout
   localStorage.removeItem('loggedInUser');
   showLoginPage();
 });
@@ -59,13 +66,10 @@ logoutButton.addEventListener('click', () => {
 const checkSession = () => {
   const loggedInUser = localStorage.getItem('loggedInUser');
   if (loggedInUser) {
-    // Jika ada sesi, langsung tampilkan halaman selamat datang
     showWelcomePage(loggedInUser);
   } else {
-    // Jika tidak ada sesi, tampilkan halaman login
     showLoginPage();
   }
 };
 
-// Jalankan pemeriksaan sesi saat aplikasi pertama kali dimuat
 checkSession();
