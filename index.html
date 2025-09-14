@@ -3,39 +3,39 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Simple Auth TS</title>
 </head>
 
 <body>
   <div id="app">
-    <!-- Login Section -->
-    <div id="loginSection" class="login-container">
+    <div id="loginSection" class="container">
       <h2>Login</h2>
       <form id="loginForm">
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" required />
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" required />
-        </div>
-        <button type="submit">Login</button>
       </form>
       <p id="message"></p>
+      <a href="#" id="showRegister">Belum punya akun? Daftar di sini</a>
     </div>
 
-    <!-- Welcome Section -->
-    <div id="welcomeSection" class="login-container" style="display: none;">
-      <h2>Selamat Datang, <span id="loggedInUser"></span>!</h2>
-      <p>Anda telah berhasil login.</p>
-      <button id="logoutButton">Logout</button>
+    <div id="registerSection" class="container" style="display: none;">
+      <h2>Register</h2>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="newUsername">Username</label>
+          <input type="text" id="newUsername" required />
+        </div>
+        <div class="form-group">
+          <label for="newPassword">Password</label>
+          <input type="password" id="newPassword" required />
+        </div>
+        <button type="submit">Register</button>
+      </form>
+      <p id="registerMessage"></p>
+      <a href="#" id="showLogin">Sudah punya akun? Login di sini</a>
+    </div>
+
+    <div id="welcomeSection" class="container" style="display: none;">
     </div>
   </div>
-
-  <!-- Script -->
   <script type="module" src="/src/main.ts"></script>
 </body>
 
