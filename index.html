@@ -4,19 +4,29 @@
 <head>
   <meta charset="UTF-8" />
   <title>Simple Auth TS</title>
+  <link rel="stylesheet" href="/src/style.css">
 </head>
 
 <body>
   <div id="app">
-    <div id="loginSection" class="container">
+    <div id="loginSection" class="login-container">
       <h2>Login</h2>
       <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required />
+        </div>
+        <button type="submit">Login</button>
       </form>
       <p id="message"></p>
       <a href="#" id="showRegister">Belum punya akun? Daftar di sini</a>
     </div>
 
-    <div id="registerSection" class="container" style="display: none;">
+    <div id="registerSection" class="login-container" style="display: none;">
       <h2>Register</h2>
       <form id="registerForm">
         <div class="form-group">
@@ -33,7 +43,10 @@
       <a href="#" id="showLogin">Sudah punya akun? Login di sini</a>
     </div>
 
-    <div id="welcomeSection" class="container" style="display: none;">
+    <div id="welcomeSection" class="login-container" style="display: none;">
+      <h2>Selamat Datang, <span id="loggedInUser"></span>!</h2>
+      <p>Anda telah berhasil login.</p>
+      <button id="logoutButton">Logout</button>
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
