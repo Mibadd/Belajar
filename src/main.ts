@@ -17,32 +17,86 @@ const messageElement = document.querySelector<HTMLParagraphElement>('#message')!
 const logoutButton = document.querySelector<HTMLButtonElement>('#logoutButton')!
 const loggedInUserSpan = document.querySelector<HTMLSpanElement>('#loggedInUser')!
 
+// --- ELEMEN BARU UNTUK REGISTRASI ---
+const registerSection = document.querySelector<HTMLDivElement>('#registerSection')!
+const registerForm = document.querySelector<HTMLFormElement>('#registerForm')!
+const newUsernameInput = document.querySelector<HTMLInputElement>('#newUsername')!
+const newPasswordInput = document.querySelector<HTMLInputElement>('#newPassword')!
+const registerMessage = document.querySelector<HTMLParagraphElement>('#registerMessage')!
+const showRegisterLink = document.querySelector<HTMLAnchorElement>('#showRegister')!
+const showLoginLink = document.querySelector<HTMLAnchorElement>('#showLogin')!
+
+
 // --- FUNGSI UNTUK MENGATUR TAMPILAN ---
 const showWelcomePage = (username: string) => {
   loggedInUserSpan.textContent = username;
   loginSection.style.display = 'none';
+  registerSection.style.display = 'none'; // Sembunyikan juga form registrasi
   welcomeSection.style.display = 'block';
 }
 
 const showLoginPage = () => {
   usernameInput.value = '';
   passwordInput.value = '';
-  messageElement.textContent = ''; 
+  messageElement.textContent = '';
+  registerSection.style.display = 'none'; // Sembunyikan form registrasi
   loginSection.style.display = 'block';
   welcomeSection.style.display = 'none';
 }
 
+// --- LOGIKA UNTUK PINDAH ANTAR FORM ---
+showRegisterLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  loginSection.style.display = 'none';
+  registerSection.style.display = 'block';
+});
+
+showLoginLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  registerSection.style.display = 'none';
+  loginSection.style.display = 'block';
+});
+
+// --- LOGIKA REGISTRASI ---
+registerForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const newUsername = newUsernameInput.value.trim();
+  const newPassword = newPasswordInput.value.trim();
+
+  if (newUsername === '' || newPassword === '') {
+    registerMessage.textContent = 'Username dan password tidak boleh kosong!';
+    registerMessage.style.color = 'red';
+    return;
+  }
+
+  if (users.find(user => user.username === newUsername)) {
+    registerMessage.textContent = 'Username sudah digunakan!';
+    registerMessage.style.color = 'red';
+  } else {
+    users.push({ username: newUsername, password: newPassword });
+    registerMessage.textContent = 'Registrasi berhasil! Silakan login.';
+    registerMessage.style.color = 'green';
+    newUsernameInput.value = '';
+    newPasswordInput.value = '';
+    // Optional: Tampilkan pesan selama beberapa detik lalu pindah ke login
+    setTimeout(() => {
+      showLoginPage();
+      registerMessage.textContent = '';
+    }, 2000);
+  }
+});
+
+
 // --- LOGIKA LOGIN DENGAN VALIDASI ---
 loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  const username = usernameInput.value.trim(); 
+  const username = usernameInput.value.trim();
   const password = passwordInput.value.trim();
 
-  // --- VALIDASI INPUT BARU ---
   if (username === '' || password === '') {
     messageElement.textContent = 'Username dan password tidak boleh kosong!';
     messageElement.style.color = 'red';
-    return; 
+    return;
   }
 
   const foundUser = users.find(user => user.username === username && user.password === password);
