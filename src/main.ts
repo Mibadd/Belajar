@@ -31,7 +31,7 @@ const showLoginLink = document.querySelector<HTMLAnchorElement>('#showLogin')!
 const showWelcomePage = (username: string) => {
   loggedInUserSpan.textContent = username;
   loginSection.style.display = 'none';
-  registerSection.style.display = 'none'; // Sembunyikan juga form registrasi
+  registerSection.style.display = 'none';
   welcomeSection.style.display = 'block';
 }
 
@@ -39,7 +39,6 @@ const showLoginPage = () => {
   usernameInput.value = '';
   passwordInput.value = '';
   messageElement.textContent = '';
-  registerSection.style.display = 'none'; // Sembunyikan form registrasi
   loginSection.style.display = 'block';
   welcomeSection.style.display = 'none';
 }
