@@ -1,12 +1,5 @@
 import './style.css'
 
-// --- DATABASE PENGGUNA ---
-const users = [
-  { username: 'admin', password: 'password123' },
-  { username: 'budi', password: 'passwordbudi' },
-  { username: 'citra', password: 'passwordcitra' }
-];
-
 // --- AMBIL SEMUA ELEMEN HTML ---
 const loginSection = document.querySelector<HTMLDivElement>('#loginSection')!
 const welcomeSection = document.querySelector<HTMLDivElement>('#welcomeSection')!
@@ -60,7 +53,7 @@ showLoginLink.addEventListener('click', (e) => {
 });
 
 // --- LOGIKA REGISTRASI ---
-registerForm.addEventListener('submit', (e) => {
+registerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const newUsername = newUsernameInput.value.trim();
   const newPassword = newPasswordInput.value.trim();
@@ -69,17 +62,27 @@ registerForm.addEventListener('submit', (e) => {
     registerMessage.textContent = 'Username dan password tidak boleh kosong!';
     return;
   }
-  if (users.find(user => user.username === newUsername)) {
-    registerMessage.textContent = 'Username sudah digunakan!';
-  } else {
-    users.push({ username: newUsername, password: newPassword });
-    registerMessage.textContent = 'Registrasi berhasil! Silakan login.';
-    setTimeout(() => showLoginPage(), 2000);
+
+  try {
+    const response = await fetch('http://localhost:3000/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newUsername, newPassword }),
+    });
+
+    const data = await response.json();
+    registerMessage.textContent = data.message;
+
+    if (response.ok) {
+      setTimeout(() => showLoginPage(), 2000);
+    }
+  } catch (error) {
+    registerMessage.textContent = 'Terjadi kesalahan saat registrasi.';
   }
 });
 
 // --- LOGIKA LOGIN ---
-loginForm.addEventListener('submit', (event) => {
+loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const username = usernameInput.value.trim();
   const password = passwordInput.value.trim();
@@ -89,13 +92,22 @@ loginForm.addEventListener('submit', (event) => {
     return;
   }
 
-  const foundUser = users.find(user => user.username === username && user.password === password);
+  try {
+    const response = await fetch('http://localhost:3000/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
 
-  if (foundUser) {
-    localStorage.setItem('loggedInUser', foundUser.username);
-    showWelcomePage(foundUser.username);
-  } else {
-    messageElement.textContent = 'Username atau password salah!';
+    const data = await response.json();
+    messageElement.textContent = data.message;
+
+    if (response.ok) {
+      localStorage.setItem('loggedInUser', username);
+      showWelcomePage(username);
+    }
+  } catch (error) {
+    messageElement.textContent = 'Terjadi kesalahan saat login.';
   }
 });
 
