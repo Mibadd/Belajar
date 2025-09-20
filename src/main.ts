@@ -1,28 +1,22 @@
 import './style.css'
 
-// --- DATABASE PENGGUNA ---
-const users = [
-  { username: 'admin', password: 'password123' },
-  { username: 'budi', password: 'passwordbudi' },
-  { username: 'citra', password: 'passwordcitra' }
-];
-
-// --- AMBIL ELEMEN HTML ---
+// --- AMBIL SEMUA ELEMEN HTML ---
 const loginSection = document.querySelector<HTMLDivElement>('#loginSection')!
 const welcomeSection = document.querySelector<HTMLDivElement>('#welcomeSection')!
+const registerSection = document.querySelector<HTMLDivElement>('#registerSection')!
+
 const loginForm = document.querySelector<HTMLFormElement>('#loginForm')!
 const usernameInput = document.querySelector<HTMLInputElement>('#username')!
 const passwordInput = document.querySelector<HTMLInputElement>('#password')!
 const messageElement = document.querySelector<HTMLParagraphElement>('#message')!
-const logoutButton = document.querySelector<HTMLButtonElement>('#logoutButton')!
-const loggedInUserSpan = document.querySelector<HTMLSpanElement>('#loggedInUser')!
 
-// --- ELEMEN BARU UNTUK REGISTRASI ---
-const registerSection = document.querySelector<HTMLDivElement>('#registerSection')!
 const registerForm = document.querySelector<HTMLFormElement>('#registerForm')!
 const newUsernameInput = document.querySelector<HTMLInputElement>('#newUsername')!
 const newPasswordInput = document.querySelector<HTMLInputElement>('#newPassword')!
 const registerMessage = document.querySelector<HTMLParagraphElement>('#registerMessage')!
+
+const logoutButton = document.querySelector<HTMLButtonElement>('#logoutButton')!
+const loggedInUserSpan = document.querySelector<HTMLSpanElement>('#loggedInUser')!
 const showRegisterLink = document.querySelector<HTMLAnchorElement>('#showRegister')!
 const showLoginLink = document.querySelector<HTMLAnchorElement>('#showLogin')!
 
@@ -31,7 +25,7 @@ const showLoginLink = document.querySelector<HTMLAnchorElement>('#showLogin')!
 const showWelcomePage = (username: string) => {
   loggedInUserSpan.textContent = username;
   loginSection.style.display = 'none';
-  registerSection.style.display = 'none'; // Sembunyikan juga form registrasi
+  registerSection.style.display = 'none';
   welcomeSection.style.display = 'block';
 }
 
@@ -39,12 +33,13 @@ const showLoginPage = () => {
   usernameInput.value = '';
   passwordInput.value = '';
   messageElement.textContent = '';
-  registerSection.style.display = 'none'; // Sembunyikan form registrasi
-  loginSection.style.display = 'block';
+  registerSection.style.display = 'none';
+  loginSection.style.display = 'block'; // Pastikan ini 'block'
   welcomeSection.style.display = 'none';
 }
 
-// --- LOGIKA UNTUK PINDAH ANTAR FORM ---
+
+// --- LOGIKA PINDAH FORM ---
 showRegisterLink.addEventListener('click', (e) => {
   e.preventDefault();
   loginSection.style.display = 'none';
@@ -58,55 +53,61 @@ showLoginLink.addEventListener('click', (e) => {
 });
 
 // --- LOGIKA REGISTRASI ---
-registerForm.addEventListener('submit', (e) => {
+registerForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const newUsername = newUsernameInput.value.trim();
   const newPassword = newPasswordInput.value.trim();
 
-  if (newUsername === '' || newPassword === '') {
+  if (!newUsername || !newPassword) {
     registerMessage.textContent = 'Username dan password tidak boleh kosong!';
-    registerMessage.style.color = 'red';
     return;
   }
 
-  if (users.find(user => user.username === newUsername)) {
-    registerMessage.textContent = 'Username sudah digunakan!';
-    registerMessage.style.color = 'red';
-  } else {
-    users.push({ username: newUsername, password: newPassword });
-    registerMessage.textContent = 'Registrasi berhasil! Silakan login.';
-    registerMessage.style.color = 'green';
-    newUsernameInput.value = '';
-    newPasswordInput.value = '';
-    // Optional: Tampilkan pesan selama beberapa detik lalu pindah ke login
-    setTimeout(() => {
-      showLoginPage();
-      registerMessage.textContent = '';
-    }, 2000);
+  try {
+    const response = await fetch('http://localhost:3000/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newUsername, newPassword }),
+    });
+
+    const data = await response.json();
+    registerMessage.textContent = data.message;
+
+    if (response.ok) {
+      setTimeout(() => showLoginPage(), 2000);
+    }
+  } catch (error) {
+    registerMessage.textContent = 'Terjadi kesalahan saat registrasi.';
   }
 });
 
-
-// --- LOGIKA LOGIN DENGAN VALIDASI ---
-loginForm.addEventListener('submit', (event) => {
+// --- LOGIKA LOGIN ---
+loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const username = usernameInput.value.trim();
   const password = passwordInput.value.trim();
 
-  if (username === '' || password === '') {
+  if (!username || !password) {
     messageElement.textContent = 'Username dan password tidak boleh kosong!';
-    messageElement.style.color = 'red';
     return;
   }
 
-  const foundUser = users.find(user => user.username === username && user.password === password);
+  try {
+    const response = await fetch('http://localhost:3000/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
 
-  if (foundUser) {
-    localStorage.setItem('loggedInUser', foundUser.username);
-    showWelcomePage(foundUser.username);
-  } else {
-    messageElement.textContent = 'Username atau password salah!';
-    messageElement.style.color = 'red';
+    const data = await response.json();
+    messageElement.textContent = data.message;
+
+    if (response.ok) {
+      localStorage.setItem('loggedInUser', username);
+      showWelcomePage(username);
+    }
+  } catch (error) {
+    messageElement.textContent = 'Terjadi kesalahan saat login.';
   }
 });
 
@@ -122,8 +123,9 @@ const checkSession = () => {
   if (loggedInUser) {
     showWelcomePage(loggedInUser);
   } else {
-    showLoginPage();
+    showLoginPage(); // Ini akan memastikan form login yang tampil
   }
 };
 
+// Jalankan saat aplikasi dimuat
 checkSession();
