@@ -1,0 +1,111 @@
+import './style.css';
+// --- AMBIL SEMUA ELEMEN HTML ---
+const loginSection = document.querySelector('#loginSection');
+const welcomeSection = document.querySelector('#welcomeSection');
+const registerSection = document.querySelector('#registerSection');
+const loginForm = document.querySelector('#loginForm');
+const usernameInput = document.querySelector('#username');
+const passwordInput = document.querySelector('#password');
+const messageElement = document.querySelector('#message');
+const registerForm = document.querySelector('#registerForm');
+const newUsernameInput = document.querySelector('#newUsername');
+const newPasswordInput = document.querySelector('#newPassword');
+const registerMessage = document.querySelector('#registerMessage');
+const logoutButton = document.querySelector('#logoutButton');
+const loggedInUserSpan = document.querySelector('#loggedInUser');
+const showRegisterLink = document.querySelector('#showRegister');
+const showLoginLink = document.querySelector('#showLogin');
+// --- FUNGSI UNTUK MENGATUR TAMPILAN ---
+const showWelcomePage = (username) => {
+    loggedInUserSpan.textContent = username;
+    loginSection.style.display = 'none';
+    registerSection.style.display = 'none';
+    welcomeSection.style.display = 'block';
+};
+const showLoginPage = () => {
+    usernameInput.value = '';
+    passwordInput.value = '';
+    messageElement.textContent = '';
+    registerSection.style.display = 'none';
+    loginSection.style.display = 'block';
+    welcomeSection.style.display = 'none';
+};
+// --- LOGIKA PINDAH FORM ---
+showRegisterLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginSection.style.display = 'none';
+    registerSection.style.display = 'block';
+});
+showLoginLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    registerSection.style.display = 'none';
+    loginSection.style.display = 'block';
+});
+// --- LOGIKA REGISTRASI ---
+registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newUsername = newUsernameInput.value.trim();
+    const newPassword = newPasswordInput.value.trim();
+    if (!newUsername || !newPassword) {
+        registerMessage.textContent = 'Username dan password tidak boleh kosong!';
+        return;
+    }
+    try {
+        const response = await fetch('http://localhost:3000/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ newUsername, newPassword }),
+        });
+        const data = await response.json();
+        registerMessage.textContent = data.message;
+        if (response.ok) {
+            setTimeout(() => showLoginPage(), 2000);
+        }
+    }
+    catch (error) {
+        registerMessage.textContent = 'Terjadi kesalahan saat registrasi.';
+    }
+});
+// --- LOGIKA LOGIN ---
+loginForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value.trim();
+    if (!username || !password) {
+        messageElement.textContent = 'Username dan password tidak boleh kosong!';
+        return;
+    }
+    try {
+        const response = await fetch('http://localhost:3000/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+        const data = await response.json();
+        messageElement.textContent = data.message;
+        if (response.ok) {
+            localStorage.setItem('loggedInUser', username);
+            showWelcomePage(username);
+        }
+    }
+    catch (error) {
+        messageElement.textContent = 'Terjadi kesalahan saat login.';
+    }
+});
+// --- LOGIKA LOGOUT ---
+logoutButton.addEventListener('click', () => {
+    localStorage.removeItem('loggedInUser');
+    showLoginPage();
+});
+// --- PEMERIKSAAN SESI SAAT HALAMAN DIMUAT ---
+const checkSession = () => {
+    const loggedInUser = localStorage.getItem('loggedInUser');
+    if (loggedInUser) {
+        showWelcomePage(loggedInUser);
+    }
+    else {
+        showLoginPage(); // Ini akan memastikan form login yang tampil
+    }
+};
+// Jalankan saat aplikasi dimuat
+checkSession();
