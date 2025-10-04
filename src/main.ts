@@ -34,7 +34,7 @@ const showLoginPage = () => {
   passwordInput.value = '';
   messageElement.textContent = '';
   registerSection.style.display = 'none';
-  loginSection.style.display = 'block'; // Pastikan ini 'block'
+  loginSection.style.display = 'block';
   welcomeSection.style.display = 'none';
 }
 
