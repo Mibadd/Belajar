@@ -33,10 +33,11 @@ const connectDB = async () => {
 
 connectDB(); // Panggil fungsi untuk koneksi
 
+// --- PERUBAHAN 1: Menambahkan timestamps ---
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     passwordHash: { type: String, required: true },
-});
+}, { timestamps: true }); // Mongoose akan otomatis menambahkan createdAt dan updatedAt
 
 const User = mongoose.model('User', userSchema);
 
@@ -44,9 +45,20 @@ const User = mongoose.model('User', userSchema);
 app.post('/api/register', async (req: Request, res: Response) => {
     const { newUsername, newPassword } = req.body;
     try {
+        // --- PERUBAHAN 2: Validasi panjang password ---
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password tidak boleh kosong dan minimal harus 8 karakter.'
+            });
+        }
+
         const existingUser = await User.findOne({ username: newUsername });
         if (existingUser) {
-            return res.status(409).json({ message: 'Username sudah digunakan!' });
+            return res.status(409).json({
+                success: false,
+                message: 'Username sudah digunakan!'
+            });
         }
 
         const saltRounds = 10;
@@ -55,10 +67,17 @@ app.post('/api/register', async (req: Request, res: Response) => {
         const newUser = new User({ username: newUsername, passwordHash });
         await newUser.save();
 
-        res.status(201).json({ message: 'Registrasi berhasil!' });
+        // --- PERUBAHAN 3: Struktur respons yang konsisten ---
+        res.status(201).json({
+            success: true,
+            message: 'Registrasi berhasil!'
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Registrasi gagal, terjadi kesalahan server.' });
+        res.status(500).json({
+            success: false,
+            message: 'Registrasi gagal, terjadi kesalahan server.'
+        });
     }
 });
 
@@ -68,18 +87,32 @@ app.post('/api/login', async (req: Request, res: Response) => {
     try {
         const foundUser = await User.findOne({ username });
         if (!foundUser) {
-            return res.status(401).json({ message: 'Username atau password salah!' });
+            return res.status(401).json({
+                success: false,
+                message: 'Username atau password salah!'
+            });
         }
 
         const isMatch = await bcrypt.compare(password, foundUser.passwordHash);
         if (isMatch) {
-            res.status(200).json({ message: 'Login berhasil!', username: foundUser.username });
+            // --- PERUBAHAN 3: Struktur respons yang konsisten ---
+            res.status(200).json({
+                success: true,
+                message: 'Login berhasil!',
+                data: { username: foundUser.username }
+            });
         } else {
-            res.status(401).json({ message: 'Username atau password salah!' });
+            res.status(401).json({
+                success: false,
+                message: 'Username atau password salah!'
+            });
         }
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Login gagal, terjadi kesalahan server.' });
+        res.status(500).json({
+            success: false,
+            message: 'Login gagal, terjadi kesalahan server.'
+        });
     }
 });
 
