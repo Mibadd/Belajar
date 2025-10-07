@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
 
 dotenv.config();
@@ -20,45 +21,56 @@ if (!mongoUri) {
     process.exit(1);
 }
 
-// Menggunakan async/await untuk koneksi agar lebih mudah dibaca
 const connectDB = async () => {
     try {
         await mongoose.connect(mongoUri);
         console.log('Berhasil terhubung ke MongoDB');
     } catch (err) {
         console.error('Koneksi MongoDB gagal:', err);
-        process.exit(1); // Keluar dari aplikasi jika koneksi gagal
+        process.exit(1);
     }
 };
 
-connectDB(); // Panggil fungsi untuk koneksi
+connectDB();
 
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     passwordHash: { type: String, required: true },
-});
+}, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 
-// Endpoint Registrasi
+// Endpoint Registrasi (Tidak ada perubahan di sini)
 app.post('/api/register', async (req: Request, res: Response) => {
     const { newUsername, newPassword } = req.body;
     try {
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password tidak boleh kosong dan minimal harus 8 karakter.'
+            });
+        }
         const existingUser = await User.findOne({ username: newUsername });
         if (existingUser) {
-            return res.status(409).json({ message: 'Username sudah digunakan!' });
+            return res.status(409).json({
+                success: false,
+                message: 'Username sudah digunakan!'
+            });
         }
-
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(newPassword, saltRounds);
-
         const newUser = new User({ username: newUsername, passwordHash });
         await newUser.save();
-
-        res.status(201).json({ message: 'Registrasi berhasil!' });
+        res.status(201).json({
+            success: true,
+            message: 'Registrasi berhasil!'
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Registrasi gagal, terjadi kesalahan server.' });
+        res.status(500).json({
+            success: false,
+            message: 'Registrasi gagal, terjadi kesalahan server.'
+        });
     }
 });
 
@@ -68,18 +80,47 @@ app.post('/api/login', async (req: Request, res: Response) => {
     try {
         const foundUser = await User.findOne({ username });
         if (!foundUser) {
-            return res.status(401).json({ message: 'Username atau password salah!' });
+            return res.status(401).json({
+                success: false,
+                message: 'Username atau password salah!'
+            });
         }
 
         const isMatch = await bcrypt.compare(password, foundUser.passwordHash);
         if (isMatch) {
-            res.status(200).json({ message: 'Login berhasil!', username: foundUser.username });
+            // --- PERUBAHAN UTAMA: Membuat JWT ---
+            const jwtSecret = process.env.JWT_SECRET;
+            if (!jwtSecret) {
+                throw new Error('JWT_SECRET tidak ditemukan di file .env');
+            }
+
+            // Buat token yang berisi ID pengguna dan berlaku selama 1 jam
+            const token = jwt.sign(
+                { userId: foundUser._id },
+                jwtSecret,
+                { expiresIn: '1h' }
+            );
+
+            res.status(200).json({
+                success: true,
+                message: 'Login berhasil!',
+                data: {
+                    username: foundUser.username,
+                    token: token // <-- 2. Kirim token ke frontend
+                }
+            });
         } else {
-            res.status(401).json({ message: 'Username atau password salah!' });
+            res.status(401).json({
+                success: false,
+                message: 'Username atau password salah!'
+            });
         }
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Login gagal, terjadi kesalahan server.' });
+        res.status(500).json({
+            success: false,
+            message: 'Login gagal, terjadi kesalahan server.'
+        });
     }
 });
 
