@@ -72,6 +72,7 @@ registerForm.addEventListener('submit', async (e) => {
 
     const data = await response.json();
     registerMessage.textContent = data.message;
+    registerMessage.style.color = data.success ? 'green' : 'red';
 
     if (response.ok) {
       setTimeout(() => showLoginPage(), 2000);
@@ -101,10 +102,13 @@ loginForm.addEventListener('submit', async (event) => {
 
     const data = await response.json();
     messageElement.textContent = data.message;
+    messageElement.style.color = data.success ? 'green' : 'red';
 
-    if (response.ok) {
-      localStorage.setItem('loggedInUser', username);
-      showWelcomePage(username);
+    if (response.ok && data.success) {
+      // --- PERUBAHAN UTAMA: Simpan username dan token ---
+      localStorage.setItem('loggedInUser', data.data.username);
+      localStorage.setItem('authToken', data.data.token);
+      showWelcomePage(data.data.username);
     }
   } catch (error) {
     messageElement.textContent = 'Terjadi kesalahan saat login.';
@@ -113,19 +117,23 @@ loginForm.addEventListener('submit', async (event) => {
 
 // --- LOGIKA LOGOUT ---
 logoutButton.addEventListener('click', () => {
+  // Hapus username dan token saat logout
   localStorage.removeItem('loggedInUser');
+  localStorage.removeItem('authToken');
   showLoginPage();
 });
 
 // --- PEMERIKSAAN SESI SAAT HALAMAN DIMUAT ---
 const checkSession = () => {
   const loggedInUser = localStorage.getItem('loggedInUser');
-  if (loggedInUser) {
+  const token = localStorage.getItem('authToken');
+
+  // Hanya tampilkan halaman welcome jika ada username DAN token
+  if (loggedInUser && token) {
     showWelcomePage(loggedInUser);
   } else {
-    showLoginPage(); // Ini akan memastikan form login yang tampil
+    showLoginPage();
   }
 };
 
-// Jalankan saat aplikasi dimuat
 checkSession();

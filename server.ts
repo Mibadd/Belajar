@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
 
 dotenv.config();
@@ -20,39 +21,35 @@ if (!mongoUri) {
     process.exit(1);
 }
 
-// Menggunakan async/await untuk koneksi agar lebih mudah dibaca
 const connectDB = async () => {
     try {
         await mongoose.connect(mongoUri);
         console.log('Berhasil terhubung ke MongoDB');
     } catch (err) {
         console.error('Koneksi MongoDB gagal:', err);
-        process.exit(1); // Keluar dari aplikasi jika koneksi gagal
+        process.exit(1);
     }
 };
 
-connectDB(); // Panggil fungsi untuk koneksi
+connectDB();
 
-// --- PERUBAHAN 1: Menambahkan timestamps ---
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     passwordHash: { type: String, required: true },
-}, { timestamps: true }); // Mongoose akan otomatis menambahkan createdAt dan updatedAt
+}, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 
-// Endpoint Registrasi
+// Endpoint Registrasi (Tidak ada perubahan di sini)
 app.post('/api/register', async (req: Request, res: Response) => {
     const { newUsername, newPassword } = req.body;
     try {
-        // --- PERUBAHAN 2: Validasi panjang password ---
         if (!newPassword || newPassword.length < 8) {
             return res.status(400).json({
                 success: false,
                 message: 'Password tidak boleh kosong dan minimal harus 8 karakter.'
             });
         }
-
         const existingUser = await User.findOne({ username: newUsername });
         if (existingUser) {
             return res.status(409).json({
@@ -60,14 +57,10 @@ app.post('/api/register', async (req: Request, res: Response) => {
                 message: 'Username sudah digunakan!'
             });
         }
-
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(newPassword, saltRounds);
-
         const newUser = new User({ username: newUsername, passwordHash });
         await newUser.save();
-
-        // --- PERUBAHAN 3: Struktur respons yang konsisten ---
         res.status(201).json({
             success: true,
             message: 'Registrasi berhasil!'
@@ -95,11 +88,26 @@ app.post('/api/login', async (req: Request, res: Response) => {
 
         const isMatch = await bcrypt.compare(password, foundUser.passwordHash);
         if (isMatch) {
-            // --- PERUBAHAN 3: Struktur respons yang konsisten ---
+            // --- PERUBAHAN UTAMA: Membuat JWT ---
+            const jwtSecret = process.env.JWT_SECRET;
+            if (!jwtSecret) {
+                throw new Error('JWT_SECRET tidak ditemukan di file .env');
+            }
+
+            // Buat token yang berisi ID pengguna dan berlaku selama 1 jam
+            const token = jwt.sign(
+                { userId: foundUser._id },
+                jwtSecret,
+                { expiresIn: '1h' }
+            );
+
             res.status(200).json({
                 success: true,
                 message: 'Login berhasil!',
-                data: { username: foundUser.username }
+                data: {
+                    username: foundUser.username,
+                    token: token // <-- 2. Kirim token ke frontend
+                }
             });
         } else {
             res.status(401).json({
