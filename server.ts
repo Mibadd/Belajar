@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
+// --- Impor middleware dan tipe AuthRequest ---
+import { authMiddleware, AuthRequest } from './authMiddleware.js';
 
 dotenv.config();
 
@@ -40,7 +42,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// Endpoint Registrasi (Tidak ada perubahan di sini)
+// Endpoint Registrasi (Tidak ada perubahan)
 app.post('/api/register', async (req: Request, res: Response) => {
     const { newUsername, newPassword } = req.body;
     try {
@@ -74,7 +76,7 @@ app.post('/api/register', async (req: Request, res: Response) => {
     }
 });
 
-// Endpoint Login
+// Endpoint Login (Tidak ada perubahan)
 app.post('/api/login', async (req: Request, res: Response) => {
     const { username, password } = req.body;
     try {
@@ -88,13 +90,11 @@ app.post('/api/login', async (req: Request, res: Response) => {
 
         const isMatch = await bcrypt.compare(password, foundUser.passwordHash);
         if (isMatch) {
-            // --- PERUBAHAN UTAMA: Membuat JWT ---
             const jwtSecret = process.env.JWT_SECRET;
             if (!jwtSecret) {
                 throw new Error('JWT_SECRET tidak ditemukan di file .env');
             }
 
-            // Buat token yang berisi ID pengguna dan berlaku selama 1 jam
             const token = jwt.sign(
                 { userId: foundUser._id },
                 jwtSecret,
@@ -106,7 +106,7 @@ app.post('/api/login', async (req: Request, res: Response) => {
                 message: 'Login berhasil!',
                 data: {
                     username: foundUser.username,
-                    token: token // <-- 2. Kirim token ke frontend
+                    token: token
                 }
             });
         } else {
@@ -123,6 +123,29 @@ app.post('/api/login', async (req: Request, res: Response) => {
         });
     }
 });
+
+// --- ENDPOINT BARU YANG DILINDUNGI ---
+app.get('/api/profile', authMiddleware, async (req: AuthRequest, res: Response) => {
+    try {
+        // Ambil ID pengguna dari token yang sudah diverifikasi oleh middleware
+        const userId = req.user?.userId;
+        const user = await User.findById(userId).select('-passwordHash'); // Ambil data user tanpa passwordHash
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Pengguna tidak ditemukan.' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Profil berhasil diambil.',
+            data: user // Kirim data lengkap pengguna (username, createdAt, dll)
+        });
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Terjadi kesalahan server.' });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server berjalan di http://localhost:${PORT}`);
